@@ -177,7 +177,7 @@ cdef class DHT_BASE:
         if self.__class__ == DHT_BASE:
             raise RuntimeError(
                 "DHT_BASE cannot be directly instantiated, use DHT instead or any subclass that"
-                " may have be defined"
+                " may have been defined"
             )
         # checking the provided id or picking a random one
         if id is not None:
@@ -590,7 +590,7 @@ cdef class DHT_BASE:
                 if ``block`` is False, the returned list will be most likely empty on the first call
                 subsequent call will return peers found so far.
         """
-        peers = None
+        peers = []
         if hash in self._got_peers and self._got_peers[hash] and len(self._got_peers[hash])>=limit:
             peers = self._get_peers(hash, compact=False)
             if callback:
@@ -750,31 +750,24 @@ cdef class DHT_BASE:
                 concatenated onto the end.
         """
         if not info_hash in self._peers and compact:
-            return None
+            return []
         elif not info_hash in self._got_peers and not compact:
-            return None
+            return []
         else:
             try:
+                peers = [
+                    (-t,ip,port) for ((ip, port), t) in self._peers[info_hash].items()
+                ]
+                # putting the more recent annonces in first
+                peers.sort()
                 # In compact mode (to send over udp) return max 70 peers to avoid udp fragmentation
                 if compact:
-                    peers = [
-                        (-t,ip,port) for ((ip, port), t) in six.iteritems(self._peers[info_hash])
-                    ]
-                    # putting the more recent annonces in first
-                    peers.sort()
                     return [
                         struct.pack("!4sH", socket.inet_aton(ip), port)
                         for (_, ip, port)
-                        in peers[0:70]
+                        in peers[:70]
                     ]
                 else:
-                    peers = [
-                        (-t,ip,port)
-                        for ((ip, port), t)
-                        in six.iteritems(self._got_peers[info_hash])
-                    ]
-                    # putting the more recent annonces in first
-                    peers.sort()
                     return [(ip, port) for (_, ip, port) in peers]
             except KeyError:
                 if errno > 20:
